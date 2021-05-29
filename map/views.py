@@ -113,10 +113,10 @@ class MapFullScreen(View):
     country = [value for key, value in Trail.get_country_trail(Trail)]
 
     def get(self, request):
-        # ---------------------------------------
+        # --------------------------------------
         # if (str(request.user) != 'AnonymousUser'):
         #     self.userRole = UserRole.objects.filter(user=request.user).first()
-        # ---------------------------------------
+        # --------------------------------------
         return render(request, self.template_name,
                       {'coordinates': self.coordinates, 'countryLength': len(self.country), 'country': self.country})
 
@@ -124,16 +124,123 @@ class MapFullScreen(View):
 class FavoriteList(ListView):
     template_name = 'favorite/favorite.html'
     model = Trail
+    coordinates = Coordinates.objects.all()
+    country = [value for key, value in Trail.get_country_trail(Trail)]
+
+    def post(self, request):
+        search = self.request.POST.get('search')
+        print(search)
+        self.favorite_trail = Trail.objects.exclude(name__exact='').filter(heart=self.request.user, name__contains=search)
+        self.favorite_point = Point.objects.exclude(name__exact='').filter(heart=self.request.user, name__contains=search)
+        return render(request, self.template_name,
+                      {'trail_favorite': self.favorite_trail, 'point_favorite': self.favorite_point, 'country': self.country,
+                       'city': self.coordinates})
+
+    def get_context_data(self, **kwargs):
+        self.favorite_trail = Trail.objects.filter(heart=self.request.user)
+        self.favorite_point = Point.objects.filter(heart=self.request.user)
+        sorting = self.request.GET.get('sorting',
+                                       "")  # http//..../done/?sorting=rate ---  geting rate or done and adding to url
+        filtercity = self.request.GET.get('filtercity', "")
+        filtercountry = self.request.GET.get('filtercountry', "")
+
+        if (filtercity != '' or filtercountry != "" or sorting == "rate" or sorting == "done"):
+            self.favorite_point = self.favorite_point.exclude(location__exact='', country__exact='').filter(
+                location__contains=filtercity,
+                country__contains=filtercountry)
+            self.favorite_trail = self.favorite_trail.exclude(city__exact='', country__exact='').filter(city__contains=filtercity,
+                                                                                                        country__contains=filtercountry)
+            if sorting == "rate":
+                self.favorite_point = self.favorite_point.order_by('-average_grade')
+                self.favorite_trail = self.favorite_trail.order_by('-average_grade')
+            elif sorting == "done":
+                self.favorite_point = self.favorite_point.order_by('-done_count')
+                self.favorite_trail = self.favorite_trail.order_by('-done_count')
+                pass
+
+        context = super().get_context_data(**kwargs)
+        context['trail_favorite'] = self.favorite_trail
+        context['point_favorite'] = self.favorite_point
+        context['country'] = self.country
+        context['city'] = self.coordinates
+        return context
 
 
 class FavoritePoint(ListView):
     template_name = 'favorite/favorite_point.html'
     model = Point
 
+    coordinates = Coordinates.objects.all()
+    country = [value for key, value in Trail.get_country_trail(Trail)]
+
+    def post(self, request):
+        search = self.request.POST.get('search')
+        self.favorite_points = Point.objects.exclude(name__exact='').filter(heart=self.request.user,
+                                                                            name__contains=search)
+        return render(request, self.template_name,
+                      {'point_favorite': self.favorite_points, 'country': self.country,
+                       'city': self.coordinates})
+
+    def get_context_data(self, **kwargs):
+        self.favorite_point = Point.objects.filter(heart=self.request.user)
+        sorting = self.request.GET.get('sorting',
+                                       "")  # http//..../done/?sorting=rate ---  geting rate or done and adding to url
+        filtercity = self.request.GET.get('filtercity', "")
+        filtercountry = self.request.GET.get('filtercountry', "")
+
+        if (filtercity != '' or filtercountry != "" or sorting == "rate" or sorting == "done"):
+            self.favorite_point = self.favorite_point.exclude(location__exact='', country__exact='').filter(
+                location__contains=filtercity,
+                country__contains=filtercountry)
+            if sorting == "rate":
+                self.favorite_point = self.favorite_point.order_by('-average_grade')
+            elif sorting == "done":
+                self.favorite_point = self.favorite_point.order_by('-done_count')
+                pass
+
+        context = super().get_context_data(**kwargs)
+        context['point_favorite'] = self.favorite_point
+        context['country'] = self.country
+        context['city'] = self.coordinates
+        return context
+
 
 class FavoriteTrail(ListView):
     template_name = 'favorite/favorite_trail.html'
     model = Trail
+    coordinates = Coordinates.objects.all()
+    country = [value for key, value in Trail.get_country_trail(Trail)]
+
+    def post(self, request):
+        search = self.request.POST.get('search')
+        self.favorite_trail = Trail.objects.exclude(name__exact='').filter(heart=self.request.user,
+                                                                           name__contains=search)
+        return render(request, self.template_name,
+                      {'trail_favorite': self.favorite_trail, 'country': self.country,
+                       'city': self.coordinates})
+
+    def get_context_data(self, **kwargs):
+        self.favorite_trail = Trail.objects.filter(heart=self.request.user)
+        sorting = self.request.GET.get('sorting',"")  # http//..../done/?sorting=rate ---  geting rate or done and adding to url
+        filtercity = self.request.GET.get('filtercity', "")
+        filtercountry = self.request.GET.get('filtercountry', "")
+
+        if (filtercity != '' or filtercountry != "" or sorting == "rate" or sorting == "done"):
+            print(self.favorite_trail)
+            self.favorite_trail = self.favorite_trail.exclude(city__exact='', country__exact='').filter(city__contains=filtercity,
+                                                                                                country__contains=filtercountry)
+            print(self.favorite_trail)
+            if sorting == "rate":
+                print(self.favorite_trail)
+                self.favorite_trail = self.favorite_trail.order_by('-average_grade')
+            elif sorting == "done":
+                self.favorite_trail = self.favorite_trail.order_by('-done_count')
+
+        context = super().get_context_data(**kwargs)
+        context['trail_favorite'] = self.favorite_trail
+        context['country'] = self.country
+        context['city'] = self.coordinates
+        return context
 
 
 class FavoriteYourTrail(ListView):
@@ -155,24 +262,29 @@ class DoneList(ListView):
     coordinates = Coordinates.objects.all()
     country = [value for key, value in Trail.get_country_trail(Trail)]
 
+    def post(self, request):
+        search = self.request.POST.get('search')
+        self.done_trail = Trail.objects.exclude(name__exact='').filter(done=self.request.user, name__contains=search)
+        self.done_point = Point.objects.exclude(name__exact='').filter(done=self.request.user,  name__contains=search)
+        return render(request, self.template_name, {'trail_done':self.done_trail, 'point_done':self.done_point,'country': self.country,'city' : self.coordinates})
+
     def get_context_data(self, **kwargs):
         self.done_trail = Trail.objects.filter(done=self.request.user)
         self.done_point = Point.objects.filter(done=self.request.user)
         sorting = self.request.GET.get('sorting', "") #http//..../done/?sorting=rate ---  geting rate or done and adding to url
         filtercity = self.request.GET.get('filtercity', "")
         filtercountry = self.request.GET.get('filtercountry', "")
-        if filtercity != "":
-            self.done_point = Point.objects.filter(done=self.request.user, location=filtercity)
-            self.done_trail = Trail.objects.filter(done=self.request.user, city=filtercity)
-        if filtercountry != "":
-            self.done_point = Point.objects.filter(done=self.request.user, country=filtercountry)
-            self.done_trail = Trail.objects.filter(done=self.request.user, country=filtercity)
-        if sorting == "rate":
-            self.done_point = Point.objects.filter(done=self.request.user).order_by('-average_grade')
-            self.done_trail = Trail.objects.filter(done=self.request.user).order_by('-average_grade')
-        elif sorting == "done":
-            self.done_point = Point.objects.filter(done=self.request.user).order_by('-done_count')
-            self.done_trail = Trail.objects.filter(done=self.request.user).order_by('-done_count')
+
+        if(filtercity != '' or  filtercountry != "" or sorting == "rate" or sorting == "done"):
+            self.done_point = self.done_point.exclude(location__exact='', country__exact='').filter(location__contains=filtercity,
+                                                                                                    country__contains=filtercountry)
+            self.done_trail = self.done_trail.exclude(city__exact='', country__exact='').filter(city__contains=filtercity,country__contains=filtercountry)
+            if sorting == "rate":
+                self.done_point = self.done_point.order_by('-average_grade')
+                self.done_trail = self.done_trail.order_by('-average_grade')
+            elif sorting == "done":
+                self.done_point = self.done_point.order_by('-done_count')
+                self.done_trail = self.done_trail.order_by('-done_count')
 
         context = super().get_context_data(**kwargs)
         context['trail_done'] = self.done_trail
